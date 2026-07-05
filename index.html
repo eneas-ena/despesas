@@ -67,6 +67,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:.5px solid var(--line)}
 .row:last-child{border-bottom:none}
 .chk{width:22px;height:22px;flex-shrink:0;border:2px solid var(--red);border-radius:6px;display:flex;align-items:center;justify-content:center;transition:.15s;background:#fff}
+.chk.neutral{border-color:#B9B3A4}
 .chk.on{background:var(--green);border-color:var(--green)}
 .chk .tick{color:#fff;font-size:14px;font-weight:700;opacity:0;transition:.15s}
 .chk.on .tick{opacity:1}
@@ -416,12 +417,14 @@ function renderCartoes(){
     const antigos = c.itens.filter(i=>!i.novo);
     const novos = c.itens.filter(i=>i.novo);
     const rows = arr => arr.length? arr.map(cardRow).join("") : `<div class="empty">Nada aqui.</div>`;
+    const nConf = c.itens.filter(i=>i.conf).length;
+    const confLine = c.itens.length ? `<br><span style="font-size:11px;opacity:.75">${nConf}/${c.itens.length} conferidas na fatura</span>` : "";
     body = `
       <div class="group-label"><span class="t fix">Lançamentos</span><button class="add-btn" onclick="openCardItem(false)">＋ Adicionar</button></div>
       <div class="list">${rows(antigos)}</div>
       <div class="group-label"><span class="t ext">Novos</span><button class="add-btn" onclick="openCardItem(true)">＋ Adicionar</button></div>
       <div class="list">${rows(novos)}</div>
-      <div class="total-bar"><span class="l">FATURA · ${escapeHtml(c.nome)}</span><span class="v">R$ ${brl(sumCard(c))}</span></div>`;
+      <div class="total-bar"><span class="l">FATURA · ${escapeHtml(c.nome)}${confLine}</span><span class="v">R$ ${brl(sumCard(c))}</span></div>`;
   }
   const geral = totalFaturas(state.ui.mes);
   document.getElementById("screen-cartoes").innerHTML = `
@@ -432,9 +435,11 @@ function renderCartoes(){
 
 function cardRow(it){
   const parc = (it.parcAtual&&it.parcTotal)? `<span class="parc">${it.parcAtual}/${it.parcTotal}</span>`:"";
-  return `<div class="row" onclick="openCardItem(${it.novo},'${it.id}')">
-    <div class="name" style="display:flex;align-items:center;gap:8px"><span class="loja">${escapeHtml(it.loja)}</span>${parc}</div>
-    <div class="amount neutral">R$ ${brl(+it.valor)}</div>
+  const cls = it.conf ? "paid" : "neutral";
+  return `<div class="row">
+    <button class="chk neutral ${it.conf?'on':''}" onclick="toggleConf('${it.id}')" aria-label="Conferir na fatura"><span class="tick">✓</span></button>
+    <div class="name" style="display:flex;align-items:center;gap:8px;flex:1;min-width:0" onclick="openCardItem(${!!it.novo},'${it.id}')"><span class="loja">${escapeHtml(it.loja)}</span>${parc}</div>
+    <div class="amount ${cls}" onclick="openCardItem(${!!it.novo},'${it.id}')">R$ ${brl(+it.valor)}</div>
   </div>`;
 }
 
@@ -444,6 +449,11 @@ function cardRow(it){
 function togglePago(tipo,id){
   const item = curMonth()[tipo].find(x=>x.id===id);
   if(item){ item.pago=!item.pago; save(); renderGastos(); }
+}
+function toggleConf(id){
+  const c = curMonth().cartoes[state.ui.cartao];
+  const it = c.itens.find(x=>x.id===id);
+  if(it){ it.conf=!it.conf; save(); renderCartoes(); }
 }
 function selectCard(i){ state.ui.cartao=i; renderCartoes(); save(); }
 
