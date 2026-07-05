@@ -2,8 +2,14 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#16233F">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Despesas">
 <title>Minhas Despesas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,13 +25,13 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--cream);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-body{padding-bottom:76px;max-width:760px;margin:0 auto;min-height:100vh}
+body{padding-bottom:calc(76px + env(safe-area-inset-bottom));max-width:760px;margin:0 auto;min-height:100vh}
 h1,h2,h3,.cinzel{font-family:"Cinzel",serif}
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 .hidden{display:none!important}
 
 /* ---------- Header ---------- */
-.topbar{position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;padding:14px 18px 12px}
+.topbar{position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;padding:14px 18px 12px;padding-top:calc(14px + env(safe-area-inset-top))}
 .topbar .app-name{font-size:13px;letter-spacing:2px;color:var(--gold);text-transform:uppercase}
 .month-nav{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
 .month-nav .m{font-family:"Cinzel",serif;font-size:19px;font-weight:600}
@@ -96,7 +102,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .grand-total .v{font-family:"Cinzel",serif;font-size:22px;font-weight:700}
 
 /* ---------- Bottom nav ---------- */
-.nav{position:fixed;bottom:0;left:0;right:0;max-width:760px;margin:0 auto;background:#fff;border-top:.5px solid var(--line);display:flex;z-index:30}
+.nav{position:fixed;bottom:0;left:0;right:0;max-width:760px;margin:0 auto;background:#fff;border-top:.5px solid var(--line);display:flex;z-index:30;padding-bottom:env(safe-area-inset-bottom)}
 .nav button{flex:1;padding:9px 0 8px;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--muted);font-size:11px}
 .nav button svg{width:22px;height:22px}
 .nav button.active{color:var(--gold)}
