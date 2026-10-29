@@ -9,10 +9,6 @@ Controle pessoal de gastos mensais e de cartões de crédito.
 - App feito em página web; pode ser instalado na tela inicial do iPad, iPhone ou Mac.
 - Os dados ficam salvos no Supabase, por isso aparecem iguais em todos os aparelhos.
 
-## Observações
-
-- Existe também o repositório `minhas-despesas`, uma versão anterior que não está publicada.
-
 ## Como publicar uma nova versão
 
 1. Nesta página do repositório, clique em **Add file → Upload files**.
