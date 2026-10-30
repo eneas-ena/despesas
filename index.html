@@ -148,16 +148,53 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
 .pin-key{height:56px;border-radius:14px;background:var(--cream);font-size:22px;font-family:"Cinzel",serif;font-weight:600;color:var(--navy)}
 .pin-key:active{background:#ECE8DF;transform:scale(.97)}
+
+/* ---- versão, tema, atualização ---- */
+.ver-topo{font-size:10px;letter-spacing:.5px;color:rgba(255,255,255,.5);text-transform:none;margin-left:4px}
+.ver-rodape{text-align:center;font-size:11px;color:var(--muted);margin-top:14px}
+.top-ico{font-size:15px;line-height:1;color:var(--gold-soft);padding:4px}
+.aviso-versao{position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:70;max-width:460px;margin:0 auto;
+  background:#0F1B33;color:#fff;border:1px solid #C9A227;border-radius:14px;padding:12px 14px;display:flex;align-items:center;
+  justify-content:space-between;gap:10px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.aviso-versao button{background:#C9A227;color:#0F1B33;font-weight:700;border-radius:9px;padding:8px 12px;white-space:nowrap}
+
+/* ---- modo escuro ---- */
+html[data-theme=dark]{--cream:#0B1426;--card:#16233F;--line:#2A3A5C;--ink:#ECE8DF;--muted:#9AA4B8;
+  --green-bg:#173326;--red-bg:#3A1F1C;--shadow:0 1px 3px rgba(0,0,0,.4)}
+html[data-theme=dark] .topbar{background:#0F1B33;border-bottom:1px solid var(--line)}
+html[data-theme=dark] .stat .val,
+html[data-theme=dark] .section-title,
+html[data-theme=dark] .group-label .t.fix,
+html[data-theme=dark] .quick button,
+html[data-theme=dark] .modal h3,
+html[data-theme=dark] .amount.neutral,
+html[data-theme=dark] .auth-brand{color:var(--gold-soft)}
+html[data-theme=dark] .bar.now{background:var(--gold-soft)}
+html[data-theme=dark] .chk{background:transparent}
+html[data-theme=dark] .card-tab,
+html[data-theme=dark] .nav,
+html[data-theme=dark] .modal,
+html[data-theme=dark] .auth-box,
+html[data-theme=dark] .field input,
+html[data-theme=dark] .field select{background:var(--card);color:var(--ink)}
+html[data-theme=dark] .card-tab.active{background:var(--gold);color:#0F1B33;border-color:var(--gold)}
+html[data-theme=dark] .btn-primary{background:var(--gold);color:#0F1B33}
+html[data-theme=dark] .btn-ghost{background:#22314F;color:var(--muted)}
+html[data-theme=dark] .parc{background:#3A3320;color:#E4C766}
+html[data-theme=dark] .dash-total,
+html[data-theme=dark] .total-bar{background:#0F1B33;border:1px solid var(--line)}
 </style>
 </head>
 <body>
 
 <div class="topbar">
   <div class="topbar-top">
-    <div class="app-name">Minhas Despesas</div>
-    <div style="display:flex;align-items:center;gap:14px">
+    <div class="app-name">Minhas Despesas <span class="ver-topo" id="verTopo"></span></div>
+    <div style="display:flex;align-items:center;gap:12px">
       <span class="sync" id="syncDot"></span>
-      <button class="logout-btn" id="logoutBtn" onclick="lockNow()" style="display:none">Bloquear</button>
+      <button class="top-ico" id="temaBtn" onclick="trocarTema()" aria-label="Mudar tema">🌙</button>
+      <button class="top-ico" onclick="atualizarApp()" title="Atualizar app" aria-label="Atualizar app">⟳</button>
+      <button class="logout-btn" id="logoutBtn" onclick="lockNow()" style="display:none">Sair</button>
     </div>
   </div>
   <div class="month-nav">
@@ -214,10 +251,15 @@ const SUPABASE_URL = "https://ghjbljypxksubmcsvaig.supabase.co";
 const SUPABASE_KEY = "sb_publishable_qXCYqg1WdmelY9D1mptZXg_U8NdoKby";
 /* ================================================================ */
 
+const VERSAO = "2.0.0";
+
 let sb = null;
 try{
   if(window.supabase && SUPABASE_URL.indexOf("SEU-PROJETO") < 0 && SUPABASE_KEY.indexOf("SUA-CHAVE") < 0){
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // "bispo-auth": login compartilhado pelos apps pessoais do Bispo
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { storageKey: "bispo-auth", persistSession: true, autoRefreshToken: true }
+    });
   }
 }catch(e){}
 
@@ -570,10 +612,10 @@ function escapeHtml(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'
 function escapeAttr(s){ return String(s).replace(/"/g,"&quot;"); }
 
 /* ==================================================================
-   NUVEM (Supabase) + PIN
+   NUVEM (Supabase) + LOGIN (e-mail e senha do Bispo)
    ================================================================== */
-let unlocked=false, currentPinHash=null, cloudHash=null, _visBound=false;
-const PINOK_KEY="despesas_pinok", PINHASH_KEY="despesas_pinhash", ROW_ID="principal";
+let unlocked=false, _visBound=false;
+const ROW_ID="principal";
 
 function setSync(s){
   const el=document.getElementById("syncDot"); if(!el) return;
@@ -581,16 +623,12 @@ function setSync(s){
   const [c,t]=map[s]||map.local;
   el.innerHTML=`<span style="width:7px;height:7px;border-radius:50%;background:${c};display:inline-block"></span> ${t}`;
 }
-async function sha(txt){
-  const buf=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(txt));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
-}
 async function pushCloud(){
   if(!sb || !unlocked) return;
   setSync("saving");
   try{
     const { error } = await sb.from("financas").upsert({
-      id: ROW_ID, dados:{months:state.months}, pin_hash:currentPinHash, updated_at:new Date().toISOString()
+      id: ROW_ID, dados:{months:state.months}, updated_at:new Date().toISOString()
     });
     setSync(error ? "error" : "ok");
   }catch(e){ setSync("error"); }
@@ -607,67 +645,69 @@ async function pullCloud(){
   return false;
 }
 async function fetchRow(){
-  const { data, error } = await sb.from("financas").select("dados,pin_hash").eq("id",ROW_ID).maybeSingle();
+  const { data, error } = await sb.from("financas").select("dados").eq("id",ROW_ID).maybeSingle();
   if(error) throw error;
   return data;
 }
 
-/* ---------- Tela de PIN (teclado numérico) ---------- */
-let pinMode=null, pinFirst=null, pinBuffer="";
-function showPin(mode, sub){
-  pinMode=mode; pinBuffer="";
+/* ---------- Tela de login (e-mail e senha) ---------- */
+function showLogin(msg){
+  let emailSalvo=""; try{ emailSalvo=localStorage.getItem("bispo-email")||""; }catch(e){}
   document.getElementById("authHost").innerHTML = `
-  <div class="auth-screen"><div class="auth-box">
+  <div class="auth-screen"><form class="auth-box" onsubmit="event.preventDefault();doLogin()">
     <div class="auth-brand">Minhas Despesas</div>
-    <p class="auth-sub">${sub}</p>
-    <div class="pin-dots" id="pinDots"><span></span><span></span><span></span><span></span></div>
-    <div id="pinErr" class="auth-err"></div>
-    <div class="pin-pad" id="pinPad"></div>
-  </div></div>`;
-  const pad=document.getElementById("pinPad");
-  ["1","2","3","4","5","6","7","8","9","","0","⌫"].forEach(k=>{
-    if(k===""){ pad.appendChild(document.createElement("span")); return; }
-    const b=document.createElement("button"); b.className="pin-key"; b.textContent=k;
-    b.onclick=()=>pinTap(k); pad.appendChild(b);
-  });
-  updateDots();
-  document.onkeydown=(e)=>{ if(/^[0-9]$/.test(e.key)) pinTap(e.key); else if(e.key==="Backspace") pinTap("⌫"); };
+    <p class="auth-sub">Entre com o seu e-mail e senha</p>
+    <div class="field"><label for="lgEmail">E-mail</label>
+      <input id="lgEmail" type="email" autocomplete="username" inputmode="email" value="${escapeAttr(emailSalvo)}"></div>
+    <div class="field"><label for="lgPass">Senha</label>
+      <input id="lgPass" type="password" autocomplete="current-password"></div>
+    <button class="btn btn-primary" id="lgBtn" type="submit" style="width:100%;margin-top:6px">Entrar</button>
+    <div id="lgErr" class="auth-err">${msg?escapeHtml(msg):""}</div>
+    <div class="ver-rodape">v${VERSAO}</div>
+  </form></div>`;
+  const alvo = emailSalvo ? "lgPass" : "lgEmail";
+  setTimeout(()=>document.getElementById(alvo)?.focus(), 50);
 }
-function updateDots(){ document.querySelectorAll("#pinDots span").forEach((d,i)=>d.classList.toggle("on",i<pinBuffer.length)); }
-function pinTap(k){
-  if(k==="⌫"){ pinBuffer=pinBuffer.slice(0,-1); updateDots(); return; }
-  if(pinBuffer.length>=4) return;
-  pinBuffer+=k; updateDots();
-  if(pinBuffer.length===4){ const v=pinBuffer; setTimeout(()=>onPin(v),130); }
+async function doLogin(){
+  const email=document.getElementById("lgEmail").value.trim(), pass=document.getElementById("lgPass").value;
+  const err=document.getElementById("lgErr"), btn=document.getElementById("lgBtn");
+  if(!email || !pass){ err.textContent="Preencha e-mail e senha."; return; }
+  btn.disabled=true; btn.textContent="Entrando...";
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  btn.disabled=false; btn.textContent="Entrar";
+  if(error){ err.textContent = /invalid/i.test(error.message||"") ? "E-mail ou senha incorretos." : "Não foi possível entrar. Confira a internet."; return; }
+  try{ localStorage.setItem("bispo-email", email); }catch(e){}
+  await abrirNuvem();
 }
-function pinError(msg){ const e=document.getElementById("pinErr"); if(e)e.textContent=msg; pinBuffer=""; updateDots(); }
-async function onPin(v){
-  if(pinMode==="enter"){
-    const h=await sha(v);
-    if(h===cloudHash){ await unlockAndStart(h); }
-    else pinError("PIN incorreto.");
-  } else if(pinMode==="create1"){
-    pinFirst=v; showPin("create2","Repita o PIN para confirmar");
-  } else if(pinMode==="create2"){
-    if(v!==pinFirst){ pinFirst=null; showPin("create1","Os PINs não bateram. Crie de novo."); }
-    else{ await createWithPin(await sha(v)); }
+async function lockNow(){
+  try{ await sb?.auth.signOut(); }catch(e){}
+  unlocked=false; location.reload();
+}
+// Já logado: busca os dados. Sem dados para esta conta = conta sem acesso.
+async function abrirNuvem(){
+  setSync("saving");
+  try{
+    const row = await fetchRow();
+    if(!row){
+      try{ await sb.auth.signOut(); }catch(e){}
+      showLogin("Esta conta não tem acesso às finanças.");
+      return;
+    }
+    if(row.dados && row.dados.months) state.months = row.dados.months;
+    unlocked=true; setSync("ok");
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
+    document.getElementById("authHost").innerHTML="";
+    finishStart();
+  }catch(e){
+    // Offline: usa o cache local do aparelho
+    if(load()){ unlocked=true; setSync("error"); document.getElementById("authHost").innerHTML=""; finishStart(); }
+    else {
+      document.getElementById("authHost").innerHTML=
+        `<div class="auth-screen"><div class="auth-box"><div class="auth-brand">Sem conexão</div>`+
+        `<p class="auth-sub">Conecte-se à internet na primeira vez que abrir neste aparelho.</p></div></div>`;
+    }
   }
 }
-async function unlockAndStart(hash){
-  unlocked=true; currentPinHash=hash;
-  try{ localStorage.setItem(PINOK_KEY,"1"); localStorage.setItem(PINHASH_KEY,hash); }catch(e){}
-  document.getElementById("authHost").innerHTML=""; document.onkeydown=null;
-  finishStart();
-}
-async function createWithPin(hash){
-  unlocked=true; currentPinHash=hash;
-  seed();
-  try{ localStorage.setItem(PINOK_KEY,"1"); localStorage.setItem(PINHASH_KEY,hash); }catch(e){}
-  await pushCloud();
-  document.getElementById("authHost").innerHTML=""; document.onkeydown=null;
-  finishStart();
-}
-function lockNow(){ try{ localStorage.removeItem(PINOK_KEY); }catch(e){} location.reload(); }
 
 /* ==================================================================
    INIT
@@ -695,32 +735,60 @@ async function initApp(){
   // Sem configuração → modo local puro
   if(!sb){ if(!load()) seed(); setSync("local"); finishStart(); return; }
 
-  const deviceUnlocked = (localStorage.getItem(PINOK_KEY)==="1");
-  const localHash = localStorage.getItem(PINHASH_KEY);
-  try{
-    const row = await fetchRow();
-    if(!row){ showPin("create1","Crie um PIN de 4 dígitos"); return; } // primeiríssima vez
-    cloudHash = row.pin_hash;
-    if(row.dados && row.dados.months) state.months = row.dados.months;
-    if(deviceUnlocked && localHash===cloudHash){
-      unlocked=true; currentPinHash=cloudHash; setSync("ok"); finishStart();
-    } else {
-      showPin("enter","Digite seu PIN");
-    }
-  }catch(e){
-    // Offline: usa cache local do aparelho
-    if(load() && localHash){
-      cloudHash=localHash;
-      if(deviceUnlocked){ unlocked=true; currentPinHash=localHash; setSync("error"); finishStart(); }
-      else showPin("enter","Digite seu PIN");
-    } else {
-      document.getElementById("authHost").innerHTML=
-        `<div class="auth-screen"><div class="auth-box"><div class="auth-brand">Sem conexão</div>`+
-        `<p class="auth-sub">Conecte-se à internet na primeira vez que abrir neste aparelho.</p></div></div>`;
-    }
-  }
+  // limpa o PIN antigo guardado no aparelho
+  try{ localStorage.removeItem("despesas_pinok"); localStorage.removeItem("despesas_pinhash"); }catch(e){}
+
+  let logado=false;
+  try{ const { data } = await sb.auth.getSession(); logado = !!data?.session; }catch(e){}
+  if(!logado){ showLogin(); return; }
+  await abrirNuvem();
 }
+
+/* ================= TEMA (sol/lua) ================= */
+function temaAtual(){
+  let t=null; try{ t=localStorage.getItem("despesas_tema"); }catch(e){}
+  if(t==="claro"||t==="escuro") return t;
+  return matchMedia("(prefers-color-scheme: dark)").matches ? "escuro" : "claro";
+}
+function aplicarTema(){
+  const t=temaAtual();
+  document.documentElement.dataset.theme = t==="escuro" ? "dark" : "light";
+  const b=document.getElementById("temaBtn");
+  if(b){ b.textContent = t==="escuro" ? "☀️" : "🌙"; b.setAttribute("aria-label", t==="escuro" ? "Mudar para modo claro" : "Mudar para modo escuro"); }
+  const m=document.querySelector('meta[name="theme-color"]'); if(m) m.content = t==="escuro" ? "#0B1426" : "#16233F";
+}
+function trocarTema(){
+  try{ localStorage.setItem("despesas_tema", temaAtual()==="escuro" ? "claro" : "escuro"); }catch(e){}
+  aplicarTema();
+}
+
+/* ================= ATUALIZAÇÃO ================= */
+async function atualizarApp(){
+  try{
+    if("serviceWorker" in navigator){ const regs=await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r=>r.unregister())); }
+    if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }
+  }catch(e){}
+  location.replace(location.pathname + "?v=" + Date.now());
+}
+async function verificarVersao(){
+  try{
+    const r=await fetch("index.html?nocache="+Date.now(), {cache:"no-store"});
+    if(!r.ok) return;
+    const m=(await r.text()).match(/const VERSAO = "([^"]+)"/);
+    if(m && m[1]!==VERSAO && !document.getElementById("avisoVersao")){
+      const d=document.createElement("div"); d.id="avisoVersao"; d.className="aviso-versao";
+      d.innerHTML=`Nova versão disponível (v${escapeHtml(m[1])}). <button onclick="atualizarApp()">Atualizar agora</button>`;
+      document.body.appendChild(d);
+    }
+  }catch(e){}
+}
+
+aplicarTema();
+document.getElementById("verTopo").textContent = "v" + VERSAO;
 initApp();
+verificarVersao();
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) verificarVersao(); });
+setInterval(verificarVersao, 30*60*1000);
 </script>
 </body>
 </html>

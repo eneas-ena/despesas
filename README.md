@@ -9,6 +9,11 @@ Controle pessoal de gastos mensais e de cartões de crédito.
 - App feito em página web; pode ser instalado na tela inicial do iPad, iPhone ou Mac.
 - Os dados ficam salvos no Supabase, por isso aparecem iguais em todos os aparelhos.
 
+## Observações
+
+- O acesso é feito com o e-mail e a senha do Bispo (Supabase → Authentication → Users). O banco só libera as finanças para esse usuário.
+- `seguranca.sql` contém as regras de segurança da tabela `financas`. Ele depende da função `eh_dono()`, criada por um script base que não fica no GitHub.
+
 ## Como publicar uma nova versão
 
 1. Nesta página do repositório, clique em **Add file → Upload files**.
